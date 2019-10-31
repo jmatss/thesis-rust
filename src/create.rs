@@ -1,24 +1,24 @@
-use std::error::Error;
-use std::time::Instant;
 use crate::block::Block;
 use crate::cons::HASH_SIZE;
 use crate::errors::GeneralError;
+use std::error::Error;
+use std::time::Instant;
 
 pub fn create_blocks(
     start: u64,
     end: u64,
     mut buffer_size: u64,
-    filename: String,
+    filename: &str,
 ) -> Result<Vec<Block>, Box<dyn Error>> {
-    let amount_of_hashes = end - start + 1;
     let mut blocks: Vec<Block> = Vec::new();
 
     // Floor to multiple of HASH_SIZE.
     buffer_size -= buffer_size % HASH_SIZE as u64;
     if buffer_size == 0 {
-        return Err(Box::new(GeneralError::new(
-            format!("Specified buffer size is to small. Needs to be >= {} bytes.", HASH_SIZE)
-        )));
+        return Err(Box::new(GeneralError::new(format!(
+            "Specified buffer size is to small. Needs to be >= {} bytes.",
+            HASH_SIZE
+        ))));
     }
 
     let mut current_start = start;
@@ -29,23 +29,41 @@ pub fn create_blocks(
         if current_end > end {
             current_end = end;
         }
+        /*
+                let start_time = Instant::now();
+                let mut block = Block::new(format!("{}{}", filename, i), current_start, current_end)?;
+                block.generate().sort().write_to_file()?.clear_hashes();
+                println!(
+                    "Block{} created and written to file: {} sec",
+                    i,
+                    start_time.elapsed().as_secs()
+                );
+        */
 
         let mut start_time = Instant::now();
-        let mut b = Block::new(format!("{}{}", filename, i), current_start, current_end)?;
-        b.generate();
-        println!("Block{} generate: {} ms", i, start_time.elapsed().as_millis());
+        let mut block = Block::new(format!("{}{}", filename, i), current_start, current_end)?;
+        block.generate();
+        println!(
+            "Block{} generate: {} ms",
+            i,
+            start_time.elapsed().as_millis()
+        );
 
         start_time = Instant::now();
-        b.sort();
+        block.sort();
         println!("Block{} sort: {} ms", i, start_time.elapsed().as_millis());
 
         start_time = Instant::now();
-        b.write_to_file()?;
-        println!("Block{} write_to_file: {} ms", i, start_time.elapsed().as_millis());
+        block.write_to_file()?;
+        println!(
+            "Block{} write_to_file: {} ms",
+            i,
+            start_time.elapsed().as_millis()
+        );
 
-        b.clear_hashes();
+        block.clear_hashes();
 
-        blocks.push(b);
+        blocks.push(block);
 
         if current_end == end {
             break;
@@ -55,5 +73,5 @@ pub fn create_blocks(
         current_start = current_end + 1;
     }
 
-    return Ok(blocks);
+    Ok(blocks)
 }
