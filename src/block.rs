@@ -1,13 +1,13 @@
 extern crate md5;
 extern crate rayon;
 
+use crate::cons::{BUF_SIZE, HASH_SIZE, START_CMP};
+use crate::errors::GeneralError;
 use md5::Digest;
 use rayon::prelude::*;
 use std::error::Error;
 use std::fs::File;
-use std::io::{Write, BufWriter, Seek, SeekFrom, BufReader, Read};
-use crate::cons::{HASH_SIZE, START_CMP};
-use crate::errors::GeneralError;
+use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 
 #[derive(Debug, Clone)]
 pub struct Block {
@@ -19,16 +19,17 @@ pub struct Block {
 }
 
 impl Block {
-    // Used by BufWriters and BufReaders.
-    const BUF_SIZE: usize = 1 << 16;
     // ASCII '0' -> 'f'
-    const HEX_LOOKUP: [u8; 16] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102];
+    const HEX_LOOKUP: [u8; 16] = [
+        48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102,
+    ];
 
     pub fn new(filename: String, start: u64, end: u64) -> Result<Block, Box<dyn Error>> {
         if end <= start {
-            return Err(Box::new(GeneralError::new(
-                format!("Bad start and end argument. end <= start ({} <= {})", end, start)
-            )));
+            return Err(Box::new(GeneralError::new(format!(
+                "Bad start and end argument. end <= start ({} <= {})",
+                end, start
+            ))));
         }
 
         Ok(Block {
@@ -43,9 +44,7 @@ impl Block {
     pub fn generate(&mut self) -> &mut Self {
         self.hashes = (self.start..=self.end)
             .into_par_iter()
-            .map(|i| {
-                md5::compute(&int_to_serial_number(i))
-            })
+            .map(|i| md5::compute(&int_to_serial_number(i)))
             .collect();
 
         self
@@ -53,20 +52,18 @@ impl Block {
 
     /// Sorts the hashes in self.hashes in DESC order, sorted by their last 6 bytes.
     pub fn sort(&mut self) -> &mut Self {
-        self.hashes.par_sort_unstable_by(|a, b| {
-            b[START_CMP..].cmp(&a[START_CMP..])
-        });
+        self.hashes
+            .par_sort_unstable_by(|a, b| b[START_CMP..].cmp(&a[START_CMP..]));
         self
     }
 
     pub fn write_to_file(&mut self) -> Result<&mut Self, Box<dyn Error>> {
-        let mut buf = BufWriter::with_capacity(Block::BUF_SIZE, File::create(&self.filename)?);
-        //let mut buf = BufWriter::new(File::create(&self.filename)?);
+        let mut file_writer = BufWriter::with_capacity(BUF_SIZE, File::create(&self.filename)?);
 
         for digest in self.hashes.iter() {
-            buf.write(digest.as_ref())?;
+            file_writer.write_all(digest.as_ref())?;
         }
-        buf.flush()?;
+        file_writer.flush()?;
 
         Ok(self)
     }
@@ -76,17 +73,16 @@ impl Block {
         std::mem::drop(std::mem::replace(&mut self.hashes, Vec::with_capacity(0)));
     }
 
-    pub fn init_merge(&mut self, mut merge_buffer_size: u64) {
+    pub fn init_merge(&mut self, mut merge_buffer_size: u64) -> Result<(), Box<dyn Error>> {
         merge_buffer_size -= merge_buffer_size % HASH_SIZE as u64;
-        /*
         if merge_buffer_size == 0 {
-            return Err(Box::new(GeneralError::new(String::from("Merge buffer size to small"))));
+            return Err(Box::new(GeneralError::new(String::from(
+                "Merge buffer size to small",
+            ))));
         }
-        */
-        self.merge_buffer_size = merge_buffer_size;
-        //self.read()?;
 
-        //Ok(())
+        self.merge_buffer_size = merge_buffer_size;
+        self.read()
     }
 
     pub fn pop(&mut self) -> Option<Digest> {
@@ -98,7 +94,8 @@ impl Block {
         self.hashes.pop()
     }
 
-    fn read(&mut self) -> Result<(), Box<dyn Error>> {
+    // TODO: call from init_merge() so that it doesn't need to be called from the merge_handler.
+    pub fn read(&mut self) -> Result<(), Box<dyn Error>> {
         self.clear_hashes();
 
         let file = File::open(&self.filename)?;
@@ -121,15 +118,15 @@ impl Block {
             file_length - self.merge_buffer_size
         };
 
-        let mut buf = BufReader::with_capacity(Block::BUF_SIZE, file);
+        let mut buf = BufReader::with_capacity(BUF_SIZE, file);
         buf.seek(SeekFrom::Start(seek_start))?;
 
         let amount_of_hashes = (file_length - seek_start) as usize / HASH_SIZE;
         let mut hashes: Vec<Digest> = Vec::with_capacity(amount_of_hashes);
 
         let mut current_digest: [u8; HASH_SIZE] = [0; HASH_SIZE];
-        for i in 0..amount_of_hashes {
-            buf.read(&mut current_digest)?;
+        for _ in 0..amount_of_hashes {
+            buf.read_exact(&mut current_digest)?;
             hashes.push(Digest(current_digest));
         }
 
@@ -160,5 +157,5 @@ fn int_to_serial_number(mut num: u64) -> [u8; HASH_SIZE + 1] {
         num >>= 4;
     }
 
-    return serial_number;
+    serial_number
 }
