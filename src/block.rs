@@ -6,7 +6,7 @@ use crate::errors::GeneralError;
 use md5::Digest;
 use rayon::prelude::*;
 use std::error::Error;
-use std::fs::File;
+use std::fs::{remove_file, File, OpenOptions};
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 
 #[derive(Debug, Clone)]
@@ -69,11 +69,14 @@ impl Block {
     }
 
     /// Drop the hashes from memory so that only the "meta-data" of the hashes are loft in the struct.
-    pub fn clear_hashes(&mut self) {
+    pub fn drop_hashes(&mut self) {
         std::mem::drop(std::mem::replace(&mut self.hashes, Vec::with_capacity(0)));
     }
 
-    pub fn init_merge(&mut self, mut merge_buffer_size: u64) -> Result<(), Box<dyn Error>> {
+    pub fn init_merge(
+        &mut self,
+        mut merge_buffer_size: u64,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         merge_buffer_size -= merge_buffer_size % HASH_SIZE as u64;
         if merge_buffer_size == 0 {
             return Err(Box::new(GeneralError::new(String::from(
@@ -94,11 +97,14 @@ impl Block {
         self.hashes.pop()
     }
 
-    // TODO: call from init_merge() so that it doesn't need to be called from the merge_handler.
-    pub fn read(&mut self) -> Result<(), Box<dyn Error>> {
-        self.clear_hashes();
+    pub fn read(&mut self) -> Result<(), Box<dyn Error + Sync + Send>> {
+        self.drop_hashes();
 
-        let file = File::open(&self.filename)?;
+        //let file = File::open(&self.filename)?;
+        let file = OpenOptions::new()
+            .write(true)
+            .read(true)
+            .open(&self.filename)?;
         let metadata = file.metadata()?;
         let file_length = metadata.len();
 
@@ -106,6 +112,8 @@ impl Block {
         // return an empty vector that the caller can use to see
         // that this block is out of hashes.
         if file_length == 0 {
+            drop(file);
+            remove_file(&self.filename)?;
             self.hashes = Vec::with_capacity(0);
             return Ok(());
         }
@@ -118,18 +126,19 @@ impl Block {
             file_length - self.merge_buffer_size
         };
 
-        let mut buf = BufReader::with_capacity(BUF_SIZE, file);
-        buf.seek(SeekFrom::Start(seek_start))?;
+        let mut file_reader = BufReader::with_capacity(BUF_SIZE, &file);
+        file_reader.seek(SeekFrom::Start(seek_start))?;
 
         let amount_of_hashes = (file_length - seek_start) as usize / HASH_SIZE;
         let mut hashes: Vec<Digest> = Vec::with_capacity(amount_of_hashes);
 
         let mut current_digest: [u8; HASH_SIZE] = [0; HASH_SIZE];
         for _ in 0..amount_of_hashes {
-            buf.read_exact(&mut current_digest)?;
+            file_reader.read_exact(&mut current_digest)?;
             hashes.push(Digest(current_digest));
         }
 
+        file.set_len(file_length - (HASH_SIZE * amount_of_hashes) as u64)?;
         self.hashes = hashes;
 
         Ok(())

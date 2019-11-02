@@ -59,7 +59,7 @@ pub fn merge_blocks(
     buffer_size: u64,
     filename: &str,
     print_amount: u64,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Box<dyn Error + Send + Sync>> {
     const CHANNEL_BUFFER_SIZE: usize = 10;
 
     if amount_of_threads == 0 {
@@ -70,32 +70,25 @@ pub fn merge_blocks(
 
     let mut file_writer = BufWriter::with_capacity(BUF_SIZE, File::create(filename)?);
     let (tx_child, rx_child) = mpsc::sync_channel::<Option<Digest>>(CHANNEL_BUFFER_SIZE);
-    let t = thread::spawn(move || -> Result<(), Box<dyn Error>> {
+    let merge_handler = thread::spawn(move || -> Result<(), Box<dyn Error + Send + Sync>> {
         merge_handler(blocks, amount_of_threads, buffer_size, tx_child)
     });
 
     let mut count: u64 = 0;
-    loop {
-        println!("Inside merge loop");
-        // TODO: Implement
-        if let Some(min) = rx_child.recv()? {
-            file_writer.write_all(min.as_ref())?;
-        } else {
-            break;
-        }
+    while let Some(min) = rx_child.recv().expect("ABAAB") {
+        file_writer.write_all(min.as_ref())?;
 
-        //count += 1;
+        count += 1;
         if count % print_amount == 0 {
             println!("{} hashes merged.", count);
         }
-        count += 1;
     }
 
-    // TODO: Fix error handling.
+    // TODO: Fix weird error handling.
     file_writer.flush()?;
-    t.join().unwrap().unwrap();
-
-    Ok(())
+    merge_handler
+        .join()
+        .map_err(|_| Box::new(GeneralError::new(String::from("a"))))?
 }
 
 fn merge_handler(
@@ -103,11 +96,12 @@ fn merge_handler(
     mut amount_of_threads: usize,
     buffer_size: u64,
     tx_parent: SyncSender<Option<Digest>>,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Box<dyn Error + Send + Sync>> {
     let buffer_size_per_block = buffer_size / blocks.len() as u64;
     for block in blocks.iter_mut() {
-        block.init_merge(buffer_size_per_block);
-        block.read()?;
+        block
+            .init_merge(buffer_size_per_block)
+            .expect("Init merge failed.");
     }
 
     let mut blocks_per_thread = if blocks.len() < amount_of_threads {
@@ -136,36 +130,25 @@ fn merge_handler(
 
             s.spawn(move |_| merge_handler_thread(current, &tx_child));
 
-            // TODO: Fix error handling.
-            let digest_with_id = DigestWithID::new(i, rx_channels[i].recv().unwrap());
+            let digest_with_id = DigestWithID::new(i, rx_channels[i].recv()?);
             priority_queue.push(digest_with_id);
         }
-
-        println!(
-            "Merge handler has created all threads. pq.len(): {}",
-            priority_queue.len()
-        );
 
         loop {
             if priority_queue.is_empty() {
                 // Indicate to parent that it is done by sending None.
-                tx_parent.send(None).unwrap();
+                tx_parent.send(None)?;
                 break;
             }
 
             // Var "next" = Next minimum from same thread as "min".
             if let Some(min) = priority_queue.pop() {
-                // TODO: Fix error handling.
-                println!("Before recv, min: {:?}", min);
-                if let Some(next) = rx_channels[min.id].recv().unwrap() {
-                    println!("Inside recv");
+                if let Some(next) = rx_channels[min.id].recv()? {
                     priority_queue.push(DigestWithID::new(min.id, Some(next)));
-                    tx_parent.send(min.digest).unwrap();
-                // TODO: Fix error handling.
                 } else {
                     // TODO: Close channel(?)
                 }
-                println!("After recv");
+                tx_parent.send(min.digest)?;
             } else {
                 // TODO: error, pq should never contain None.
             }
@@ -173,44 +156,36 @@ fn merge_handler(
 
         Ok(())
     })
-    .unwrap()
-    // TODO: Fix error handling.
+    .map_err(|_| Box::new(GeneralError::new(String::from("a"))))?
+    // TODO: Fix weird error handling.
 }
 
 fn merge_handler_thread(
     sub_blocks: &mut [Block],
     tx_parent: &SyncSender<Option<Digest>>,
-) -> Result<(), Box<dyn Error + Send>> {
+) -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut priority_queue: BinaryHeap<DigestWithID> = BinaryHeap::with_capacity(sub_blocks.len());
 
     for (i, block) in sub_blocks.iter_mut().enumerate() {
         priority_queue.push(DigestWithID::new(i, block.pop()));
     }
 
-    println!(
-        "Sub has created all threads. pq.len(): {}",
-        priority_queue.len()
-    );
-
     loop {
         if priority_queue.is_empty() {
+            tx_parent.send(None)?;
             break;
         }
 
         // Var "next" = Next minimum from same block as "min".
         if let Some(min) = priority_queue.pop() {
-            println!("After pop, min: {:?}", min);
             if let Some(next) = sub_blocks[min.id].pop() {
                 priority_queue.push(DigestWithID::new(min.id, Some(next)));
             }
-            // TODO: Fix error handling.
-            tx_parent.send(min.digest).unwrap();
+            tx_parent.send(min.digest)?;
         } else {
             // TODO: throw error, pq should never contain None.
         }
     }
-
-    println!("sub done!!!!!!!!");
 
     Ok(())
 }
