@@ -91,8 +91,8 @@ impl Block {
     pub fn pop(&mut self) -> Option<Digest> {
         if self.hashes.capacity() == 0 {
             return None;
-        } else if self.hashes.is_empty() {
-            self.read().ok();
+        } else if self.hashes.is_empty() && self.read().is_err() {
+            return None;
         }
         self.hashes.pop()
     }
@@ -100,7 +100,6 @@ impl Block {
     pub fn read(&mut self) -> Result<(), Box<dyn Error + Sync + Send>> {
         self.drop_hashes();
 
-        //let file = File::open(&self.filename)?;
         let file = OpenOptions::new()
             .write(true)
             .read(true)
