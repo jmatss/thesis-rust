@@ -61,10 +61,10 @@ impl PartialEq for DigestWithID {
 
 pub fn merge_blocks(
     blocks: Vec<Block>,
-    amount_of_threads: usize,
-    buffer_size: u64,
     filename: &str,
+    buffer_size: u64,
     print_amount: u64,
+    amount_of_threads: usize,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     if amount_of_threads == 0 {
         return Err(Box::new(GeneralError::new(String::from(

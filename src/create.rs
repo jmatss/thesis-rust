@@ -5,10 +5,10 @@ use std::error::Error;
 use std::time::Instant;
 
 pub fn create_blocks(
+    filename: &str,
     start: u64,
     end: u64,
     mut buffer_size: u64,
-    filename: &str,
 ) -> Result<Vec<Block>, Box<dyn Error>> {
     let mut blocks: Vec<Block> = Vec::new();
 
