@@ -90,9 +90,11 @@ pub fn merge_blocks(
 
     // TODO: Fix weird error handling.
     file_writer.flush()?;
-    merge_handler
-        .join()
-        .map_err(|_| Box::new(GeneralError::new(String::from("a"))))?
+    merge_handler.join().map_err(|_| {
+        Box::new(GeneralError::new(String::from(
+            "Unable to join merge_handler.",
+        )))
+    })?
 }
 
 fn merge_handler(
@@ -157,7 +159,11 @@ fn merge_handler(
 
         Ok(())
     })
-    .map_err(|_| Box::new(GeneralError::new(String::from("a"))))?
+    .map_err(|_| {
+        Box::new(GeneralError::new(String::from(
+            "merge_handler unable to merge blocks.",
+        )))
+    })?
     // TODO: Fix weird error handling.
 }
 
