@@ -1,6 +1,7 @@
 mod block;
 mod cons;
 mod create;
+mod digestwithid;
 mod errors;
 mod merge;
 
@@ -45,6 +46,7 @@ fn main() {
         amount_of_threads,
     )
     .expect("Unable to merge blocks.");
+
     println!(
         "-- Everything done! Merging elapsed time: {} sec, total elapsed time: {} min --",
         time.elapsed().as_secs(),

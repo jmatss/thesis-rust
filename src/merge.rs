@@ -1,63 +1,15 @@
 use crate::block::Block;
 use crate::cons::{BUF_SIZE, CHAN_BUF_SIZE, START_CMP};
+use crate::digestwithid::DigestWithID;
 use crate::errors::GeneralError;
 use crossbeam_channel::{Receiver, Sender};
 use crossbeam_utils::thread as cb_thread;
 use md5::Digest;
-use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::thread;
-
-#[derive(Debug)]
-struct DigestWithID {
-    pub id: usize,
-    pub digest: Option<Digest>,
-}
-
-impl DigestWithID {
-    fn new(id: usize, digest: Option<Digest>) -> Self {
-        DigestWithID { id, digest }
-    }
-}
-
-/// OBS! Order is in reverse. This is because the default heap is a max heap,
-/// so reverse the order of DigestWithID and you get a min heap.
-/// Otherwise one would have to wrap every item in a "Reverse".
-impl PartialOrd for DigestWithID {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(other.digest?[START_CMP..].cmp(&self.digest?[START_CMP..]))
-    }
-}
-
-/// OBS! Order is in reverse. This is because the default heap is a max heap,
-/// so reverse the order of DigestWithID and you get a min heap.
-/// Otherwise one would have to wrap every item in a "Reverse".
-///
-/// Treats a "None"-option as greater than (so that it sinks).
-impl std::cmp::Ord for DigestWithID {
-    fn cmp(&self, other: &Self) -> Ordering {
-        if let Some(s) = self.digest {
-            if let Some(o) = other.digest {
-                o[START_CMP..].cmp(&s[START_CMP..])
-            } else {
-                Ordering::Less
-            }
-        } else {
-            Ordering::Greater
-        }
-    }
-}
-
-impl Eq for DigestWithID {}
-
-impl PartialEq for DigestWithID {
-    fn eq(&self, other: &Self) -> bool {
-        self.digest == other.digest
-    }
-}
 
 pub fn merge_blocks(
     blocks: Vec<Block>,
