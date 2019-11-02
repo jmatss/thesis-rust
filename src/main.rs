@@ -5,6 +5,7 @@ mod errors;
 mod merge;
 
 extern crate md5;
+extern crate num_cpus;
 
 use crate::cons::HASH_SIZE;
 use crate::merge::merge_blocks;
@@ -13,22 +14,32 @@ use std::time::Instant;
 
 fn main() {
     let start: u64 = 0;
-    let end: u64 = 100;
-    //let end: u64 = 10_000_000;
-    let buffer_size: u64 = 10_000_000 * HASH_SIZE as u64;
-    let amount_of_threads = 4;
+    let end: u64 = 0xffff_ffff;
+    let buffer_size: u64 = (1 << 28) * HASH_SIZE as u64; // 4 GB
+    let amount_of_threads = num_cpus::get();
     let print_amount = 10_000_000;
     let filename = "list";
 
-    let total_time = Instant::now();
-    let mut sub_time = Instant::now();
-    let blocks = create_blocks(start, end, buffer_size, filename).unwrap();
+    let tot_time = Instant::now();
+
+    /*
+        STEP 1
+        Create blocks. Every block will contain (buffer_size / HASH_SIZE) hashes.
+        The blocks will be sorted in DESC and written to disk in files "filename + block_id".
+    */
+    let mut time = Instant::now();
+    let blocks = create_blocks(start, end, buffer_size, filename).expect("Unable to create blocks");
     println!(
         "Creating hashes done! Elapsed time: {} s",
-        sub_time.elapsed().as_secs()
+        time.elapsed().as_secs()
     );
 
-    sub_time = Instant::now();
+    /*
+        STEP 2
+        Merges the blocks into one single sorted file "filename".
+        Removes hashes from disk as soon as they have been read into memory, no backup.
+    */
+    time = Instant::now();
     merge_blocks(
         blocks,
         amount_of_threads,
@@ -38,25 +49,8 @@ fn main() {
     )
     .expect("Unable to merge blocks.");
     println!(
-        "Everything done! Merging elapsed time: {}, Total elapsed time: {} ms",
-        sub_time.elapsed().as_secs(),
-        total_time.elapsed().as_secs()
+        "Everything done! Merging elapsed time: {} ms, Total elapsed time: {} min",
+        time.elapsed().as_secs(),
+        tot_time.elapsed().as_secs() / 60
     );
-
-    /*
-    let mut start_time = Instant::now();
-    let mut b = Block::new(String::from("test"), start, end).expect("Unable to create block.");
-    b.generate();
-    println!("generate: {}", start_time.elapsed().as_millis());
-    start_time = Instant::now();
-    b.sort();
-    println!("sort: {}", start_time.elapsed().as_millis());
-    start_time = Instant::now();
-    b.write_to_file()
-        .expect("Unable to write to file");
-    //println!("{:?}\n\n", b);
-    println!("write_to_file: {}", start_time.elapsed().as_millis());
-
-    b.clear_hashes();
-    */
 }
