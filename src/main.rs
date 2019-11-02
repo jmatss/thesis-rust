@@ -9,9 +9,9 @@ extern crate md5;
 extern crate num_cpus;
 
 use crate::cons::HASH_SIZE;
+use crate::create::create_blocks;
 use crate::merge::merge_blocks;
 use clap::{App, Arg};
-use create::create_blocks;
 use std::time::Instant;
 
 fn main() {
