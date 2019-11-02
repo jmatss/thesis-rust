@@ -1,6 +1,7 @@
 use crate::block::Block;
-use crate::cons::{BUF_SIZE, START_CMP};
+use crate::cons::{BUF_SIZE, CHAN_BUF_SIZE, START_CMP};
 use crate::errors::GeneralError;
+use crossbeam_channel::{Receiver, Sender};
 use crossbeam_utils::thread as cb_thread;
 use md5::Digest;
 use std::cmp::Ordering;
@@ -8,8 +9,6 @@ use std::collections::BinaryHeap;
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufWriter, Write};
-use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, SyncSender};
 use std::thread;
 
 #[derive(Debug)]
@@ -60,8 +59,6 @@ pub fn merge_blocks(
     filename: &str,
     print_amount: u64,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    const CHANNEL_BUFFER_SIZE: usize = 10;
-
     if amount_of_threads == 0 {
         return Err(Box::new(GeneralError::new(String::from(
             "Amount of threads set to zero.",
@@ -69,13 +66,13 @@ pub fn merge_blocks(
     }
 
     let mut file_writer = BufWriter::with_capacity(BUF_SIZE, File::create(filename)?);
-    let (tx_child, rx_child) = mpsc::sync_channel::<Option<Digest>>(CHANNEL_BUFFER_SIZE);
+    let (tx_child, rx_child) = crossbeam_channel::bounded(CHAN_BUF_SIZE);
     let merge_handler = thread::spawn(move || -> Result<(), Box<dyn Error + Send + Sync>> {
         merge_handler(blocks, amount_of_threads, buffer_size, tx_child)
     });
 
     let mut count: u64 = 0;
-    while let Some(min) = rx_child.recv().expect("ABAAB") {
+    while let Some(min) = rx_child.recv()? {
         file_writer.write_all(min.as_ref())?;
 
         count += 1;
@@ -95,7 +92,7 @@ fn merge_handler(
     mut blocks: Vec<Block>,
     mut amount_of_threads: usize,
     buffer_size: u64,
-    tx_parent: SyncSender<Option<Digest>>,
+    tx_parent: Sender<Option<Digest>>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let buffer_size_per_block = buffer_size / blocks.len() as u64;
     for block in blocks.iter_mut() {
@@ -124,8 +121,7 @@ fn merge_handler(
             let (current, rest) = remaining.split_at_mut(blocks_per_thread);
             remaining = rest;
 
-            // TODO: Fix buffer size const.
-            let (tx_child, rx_child) = mpsc::sync_channel::<Option<Digest>>(10);
+            let (tx_child, rx_child) = crossbeam_channel::bounded(CHAN_BUF_SIZE);
             rx_channels.push(rx_child);
 
             s.spawn(move |_| merge_handler_thread(current, &tx_child));
@@ -145,12 +141,10 @@ fn merge_handler(
             if let Some(min) = priority_queue.pop() {
                 if let Some(next) = rx_channels[min.id].recv()? {
                     priority_queue.push(DigestWithID::new(min.id, Some(next)));
-                } else {
-                    // TODO: Close channel(?)
                 }
                 tx_parent.send(min.digest)?;
             } else {
-                // TODO: error, pq should never contain None.
+                panic!("\"None\" value in merge handlers pq, should never happen");
             }
         }
 
@@ -162,7 +156,7 @@ fn merge_handler(
 
 fn merge_handler_thread(
     sub_blocks: &mut [Block],
-    tx_parent: &SyncSender<Option<Digest>>,
+    tx_parent: &Sender<Option<Digest>>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut priority_queue: BinaryHeap<DigestWithID> = BinaryHeap::with_capacity(sub_blocks.len());
 
@@ -183,7 +177,7 @@ fn merge_handler_thread(
             }
             tx_parent.send(min.digest)?;
         } else {
-            // TODO: throw error, pq should never contain None.
+            panic!("\"None\" value in merge handler threads pq, should never happen");
         }
     }
 
