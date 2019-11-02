@@ -58,7 +58,7 @@ fn parse_arguments() -> (String, u64, u64, u64, u64, usize) {
     const DEFAULT_START: u64 = 0;
     const DEFAULT_END: u64 = 0xffff_ffff;
     const DEFAULT_BUFFER_SIZE: u64 = (1 << 28) * HASH_SIZE as u64; // 4 GB
-    const DEFAULT_PRINT_AMOUNT: u64 = 10_000_000;
+    const DEFAULT_PRINT_AMOUNT: u64 = 200_000_000;
     let default_amount_of_threads = num_cpus::get();
 
     let defstr_start = DEFAULT_START.to_string();

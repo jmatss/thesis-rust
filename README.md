@@ -16,6 +16,6 @@ OPTIONS:
     -s, --start <u64>           Start value of serial number. [default: 0]
     -e, --end <u64>             End value of serial number. [default: 0xffff_ffff]
     -b, --buffer_size <u64>     ~Buffer size in bytes. [default: 4_294_967_296]
-    -p, --print_amount <u64>    Print status message every "print_amount" iteration. [default: 10_000_000]
+    -p, --print_amount <u64>    Print status message every "print_amount" iteration. [default: 200_000_000]
     -t, --threads <usize>       ~Max amount of threads. [default: (# logical CPUs)]
 ```
