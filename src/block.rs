@@ -89,9 +89,7 @@ impl Block {
     }
 
     pub fn pop(&mut self) -> Option<Digest> {
-        if self.hashes.capacity() == 0 {
-            return None;
-        } else if self.hashes.is_empty() && self.read().is_err() {
+        if self.hashes.capacity() == 0 || self.hashes.is_empty() && self.read().is_err() {
             return None;
         }
         self.hashes.pop()
@@ -152,8 +150,8 @@ impl Block {
 /// format!("{:0>16x}\n", num);
 /// ```
 fn int_to_serial_number(mut num: u64) -> [u8; HASH_SIZE + 1] {
-    let mut serial_number: [u8; HASH_SIZE + 1] = ['0' as u8; HASH_SIZE + 1];
-    serial_number[serial_number.len() - 1] = '\n' as u8;
+    let mut serial_number: [u8; HASH_SIZE + 1] = [b'0' as u8; HASH_SIZE + 1];
+    serial_number[serial_number.len() - 1] = b'\n' as u8;
 
     // Goes through the number "num" shifting it one extra hex char to the right
     // per loop iteration. Masks out the lsB and inserts it into "serial_number".
