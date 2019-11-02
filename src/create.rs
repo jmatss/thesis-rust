@@ -29,39 +29,15 @@ pub fn create_blocks(
         if current_end > end {
             current_end = end;
         }
-        /*
-                let start_time = Instant::now();
-                let mut block = Block::new(format!("{}{}", filename, i), current_start, current_end)?;
-                block.generate().sort().write_to_file()?.drop_hashes();
-                println!(
-                    "Block{} created and written to file: {} sec",
-                    i,
-                    start_time.elapsed().as_secs()
-                );
-        */
 
-        let mut start_time = Instant::now();
+        let time = Instant::now();
         let mut block = Block::new(format!("{}{}", filename, i), current_start, current_end)?;
-        block.generate();
+        block.generate().sort().write_to_file()?.drop_hashes();
         println!(
-            "Block{} generate: {} ms",
+            "Block{} created and written to file: {} sec",
             i,
-            start_time.elapsed().as_millis()
+            time.elapsed().as_secs()
         );
-
-        start_time = Instant::now();
-        block.sort();
-        println!("Block{} sort: {} ms", i, start_time.elapsed().as_millis());
-
-        start_time = Instant::now();
-        block.write_to_file()?;
-        println!(
-            "Block{} write_to_file: {} ms",
-            i,
-            start_time.elapsed().as_millis()
-        );
-
-        block.drop_hashes();
 
         blocks.push(block);
 
