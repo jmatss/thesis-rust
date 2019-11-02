@@ -23,18 +23,25 @@ impl DigestWithID {
     }
 }
 
+/// OBS! Order is in reverse. This is because the default heap is a max heap,
+/// so reverse the order of DigestWithID and you get a min heap.
+/// Otherwise one would have to wrap every item in a "Reverse".
 impl PartialOrd for DigestWithID {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.digest?[START_CMP..].cmp(&other.digest?[START_CMP..]))
+        Some(other.digest?[START_CMP..].cmp(&self.digest?[START_CMP..]))
     }
 }
 
-/// Treats a "None"-option as greater than.
+/// OBS! Order is in reverse. This is because the default heap is a max heap,
+/// so reverse the order of DigestWithID and you get a min heap.
+/// Otherwise one would have to wrap every item in a "Reverse".
+///
+/// Treats a "None"-option as greater than (so that it sinks).
 impl std::cmp::Ord for DigestWithID {
     fn cmp(&self, other: &Self) -> Ordering {
         if let Some(s) = self.digest {
             if let Some(o) = other.digest {
-                s[START_CMP..].cmp(&o[START_CMP..])
+                o[START_CMP..].cmp(&s[START_CMP..])
             } else {
                 Ordering::Less
             }
