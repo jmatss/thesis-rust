@@ -32,7 +32,7 @@ pub fn create_blocks(
         /*
                 let start_time = Instant::now();
                 let mut block = Block::new(format!("{}{}", filename, i), current_start, current_end)?;
-                block.generate().sort().write_to_file()?.clear_hashes();
+                block.generate().sort().write_to_file()?.drop_hashes();
                 println!(
                     "Block{} created and written to file: {} sec",
                     i,
@@ -61,7 +61,7 @@ pub fn create_blocks(
             start_time.elapsed().as_millis()
         );
 
-        block.clear_hashes();
+        block.drop_hashes();
 
         blocks.push(block);
 
