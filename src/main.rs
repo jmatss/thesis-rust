@@ -127,7 +127,11 @@ fn parse_arguments() -> (String, u64, u64, u64, u64, usize) {
         )
         .get_matches();
 
-    let filename = String::from(matches.value_of("output").unwrap_or(DEFAULT_FILENAME));
+    let filename = String::from(
+        matches
+            .value_of("output")
+            .expect("Unable to parse \"output\"."),
+    );
     let start = matches
         .value_of("start")
         .unwrap()
