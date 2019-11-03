@@ -8,6 +8,7 @@ use rayon::prelude::*;
 use std::error::Error;
 use std::fs::{remove_file, File, OpenOptions};
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
+use std::mem::{drop, replace};
 
 #[derive(Debug, Clone)]
 pub struct Block {
@@ -69,7 +70,7 @@ impl Block {
     }
 
     pub fn drop_hashes(&mut self) {
-        std::mem::drop(std::mem::replace(&mut self.hashes, Vec::with_capacity(0)));
+        drop(replace(&mut self.hashes, Vec::with_capacity(0)));
     }
 
     pub fn init_merge(
@@ -88,7 +89,7 @@ impl Block {
     }
 
     pub fn pop(&mut self) -> Option<Digest> {
-        if self.hashes.capacity() == 0 || self.hashes.is_empty() && self.read().is_err() {
+        if self.hashes.capacity() == 0 || (self.hashes.is_empty() && self.read().is_err()) {
             return None;
         }
         self.hashes.pop()
@@ -149,8 +150,8 @@ impl Block {
 /// format!("{:0>16x}\n", num);
 /// ```
 fn int_to_serial_number(mut num: u64) -> [u8; HASH_SIZE + 1] {
-    let mut serial_number: [u8; HASH_SIZE + 1] = [b'0' as u8; HASH_SIZE + 1];
-    serial_number[serial_number.len() - 1] = b'\n' as u8;
+    let mut serial_number: [u8; HASH_SIZE + 1] = [b'0'; HASH_SIZE + 1];
+    serial_number[serial_number.len() - 1] = b'\n';
 
     // Goes through the number "num" shifting it one extra hex char to the right
     // per loop iteration. Masks out the lsB and inserts it into "serial_number".
