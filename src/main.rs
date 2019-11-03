@@ -28,8 +28,8 @@ fn main() {
     let blocks =
         create_blocks(&filename, start, end, buffer_size).expect("Unable to create blocks");
     println!(
-        "-- All blocks done! Elapsed time: {} sec --",
-        time.elapsed().as_secs()
+        "-- All blocks done! Elapsed time: {} min --",
+        time.elapsed().as_secs() / 60
     );
 
     /*
@@ -48,8 +48,8 @@ fn main() {
     .expect("Unable to merge blocks.");
 
     println!(
-        "-- Everything done! Merging elapsed time: {} sec, total elapsed time: {} min --",
-        time.elapsed().as_secs(),
+        "-- Everything done! Merging elapsed time: {} min, total elapsed time: {} min --",
+        time.elapsed().as_secs() / 60,
         tot_time.elapsed().as_secs() / 60
     );
 }

@@ -68,7 +68,6 @@ impl Block {
         Ok(self)
     }
 
-    /// Drop the hashes from memory so that only the "meta-data" of the hashes are loft in the struct.
     pub fn drop_hashes(&mut self) {
         std::mem::drop(std::mem::replace(&mut self.hashes, Vec::with_capacity(0)));
     }

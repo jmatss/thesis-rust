@@ -1,5 +1,5 @@
 use crate::block::Block;
-use crate::cons::{BUF_SIZE, CHAN_BUF_SIZE, START_CMP};
+use crate::cons::{BUF_SIZE, CHAN_BUF_SIZE};
 use crate::digestwithid::DigestWithID;
 use crate::errors::GeneralError;
 use crossbeam_channel::{Receiver, Sender};
