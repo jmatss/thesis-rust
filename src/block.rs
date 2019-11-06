@@ -27,10 +27,11 @@ impl Block {
 
     pub fn new(filename: String, start: u64, end: u64) -> Result<Block, Box<dyn Error>> {
         if end <= start {
-            return Err(Box::new(GeneralError::new(format!(
+            return Err(GeneralError::new(format!(
                 "Bad start and end argument. end <= start ({} <= {})",
                 end, start
-            ))));
+            ))
+            .into());
         }
 
         Ok(Block {
@@ -79,9 +80,7 @@ impl Block {
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         merge_buffer_size -= merge_buffer_size % HASH_SIZE as u64;
         if merge_buffer_size == 0 {
-            return Err(Box::new(GeneralError::new(String::from(
-                "Merge buffer size to small",
-            ))));
+            return Err(GeneralError::new(String::from("Merge buffer size to small")).into());
         }
 
         self.merge_buffer_size = merge_buffer_size;

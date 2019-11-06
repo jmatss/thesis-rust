@@ -19,9 +19,7 @@ pub fn merge_blocks(
     amount_of_threads: usize,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     if amount_of_threads == 0 {
-        return Err(Box::new(GeneralError::new(String::from(
-            "Amount of threads set to zero.",
-        ))));
+        return Err(GeneralError::new(String::from("Amount of threads set to zero.")).into());
     }
 
     let mut file_writer = BufWriter::with_capacity(BUF_SIZE, File::create(filename)?);

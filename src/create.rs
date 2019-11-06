@@ -15,10 +15,11 @@ pub fn create_blocks(
     // Floor to multiple of HASH_SIZE.
     buffer_size -= buffer_size % HASH_SIZE as u64;
     if buffer_size == 0 {
-        return Err(Box::new(GeneralError::new(format!(
+        return Err(GeneralError::new(format!(
             "Specified buffer size is to small. Needs to be >= {} bytes.",
             HASH_SIZE
-        ))));
+        ))
+        .into());
     }
 
     let mut current_start = start;
