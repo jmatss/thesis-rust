@@ -56,18 +56,12 @@ fn main() {
 
 /// Returns: (filename, start, end, buffer_size, print_amount, amount_of_threads)
 fn parse_arguments() -> (String, u64, u64, u64, u64, usize) {
-    const DEFAULT_FILENAME: &str = "list";
-    const DEFAULT_START: u64 = 0;
-    const DEFAULT_END: u64 = 0xffff_ffff;
-    const DEFAULT_BUFFER_SIZE: u64 = (1 << 28) * HASH_SIZE as u64; // 4 GB
-    const DEFAULT_PRINT_AMOUNT: u64 = 200_000_000;
-    let default_amount_of_threads = num_cpus::get();
-
-    let defstr_start = DEFAULT_START.to_string();
-    let defstr_end = DEFAULT_END.to_string();
-    let defstr_buffer_size = DEFAULT_BUFFER_SIZE.to_string();
-    let defstr_print_amount = DEFAULT_PRINT_AMOUNT.to_string();
-    let defstr_amount_of_threads = default_amount_of_threads.to_string();
+    let default_filename = "list";
+    let default_start = (0 as u64).to_string();
+    let default_end = (0xffff_ffff as u64).to_string();
+    let default_buffer_size = ((1 << 28) * HASH_SIZE as u64).to_string(); // 4 GB
+    let default_print_amount = (200_000_000 as u64).to_string();
+    let default_amount_of_threads = (num_cpus::get() as usize).to_string();
 
     let matches = App::new("thesis-rust")
         .about("Creates a sorted word list with all possible SSID & password combinations.")
@@ -78,7 +72,7 @@ fn parse_arguments() -> (String, u64, u64, u64, u64, usize) {
                 .long("output")
                 .help("Name of output file.")
                 .takes_value(true)
-                .default_value(DEFAULT_FILENAME),
+                .default_value(default_filename),
         )
         .arg(
             Arg::with_name("start")
@@ -87,7 +81,7 @@ fn parse_arguments() -> (String, u64, u64, u64, u64, usize) {
                 .long("start")
                 .help("Start value of serial number.")
                 .takes_value(true)
-                .default_value(&defstr_start),
+                .default_value(&default_start),
         )
         .arg(
             Arg::with_name("end")
@@ -96,7 +90,7 @@ fn parse_arguments() -> (String, u64, u64, u64, u64, usize) {
                 .long("end")
                 .help("End value of serial number.")
                 .takes_value(true)
-                .default_value(&defstr_end),
+                .default_value(&default_end),
         )
         .arg(
             Arg::with_name("buffer_size")
@@ -105,7 +99,7 @@ fn parse_arguments() -> (String, u64, u64, u64, u64, usize) {
                 .long("buffer_size")
                 .help("~Buffer size in bytes.")
                 .takes_value(true)
-                .default_value(&defstr_buffer_size),
+                .default_value(&default_buffer_size),
         )
         .arg(
             Arg::with_name("print_amount")
@@ -114,7 +108,7 @@ fn parse_arguments() -> (String, u64, u64, u64, u64, usize) {
                 .long("print_amount")
                 .help("Print status message every \"print_amount\" iteration.")
                 .takes_value(true)
-                .default_value(&defstr_print_amount),
+                .default_value(&default_print_amount),
         )
         .arg(
             Arg::with_name("threads")
@@ -123,7 +117,7 @@ fn parse_arguments() -> (String, u64, u64, u64, u64, usize) {
                 .long("threads")
                 .help("~Max amount of threads.")
                 .takes_value(true)
-                .default_value(&defstr_amount_of_threads),
+                .default_value(&default_amount_of_threads),
         )
         .get_matches();
 
