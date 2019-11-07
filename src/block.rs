@@ -48,7 +48,6 @@ impl Block {
             .into_par_iter()
             .map(|i| md5::compute(&int_to_serial_number(i)))
             .collect();
-
         self
     }
 
@@ -94,6 +93,7 @@ impl Block {
         self.hashes.pop()
     }
 
+    /// Reads hashes from hard drive into ram for this block.
     pub fn read(&mut self) -> Result<(), Box<dyn Error + Sync + Send>> {
         self.drop_hashes();
 
@@ -105,12 +105,12 @@ impl Block {
         let file_length = metadata.len();
 
         // If the file is empty and there are no hashes left,
-        // return an empty vector that the caller can use to see
-        // that this block is out of hashes.
+        // let self.hashes be the empty vector from the
+        // self.drop_hashes() call. The caller will then see
+        // that the capacity is zero in the pop function.
         if file_length == 0 {
             drop(file);
             remove_file(&self.filename)?;
-            self.hashes = Vec::with_capacity(0);
             return Ok(());
         }
 
