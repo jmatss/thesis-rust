@@ -11,6 +11,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::thread;
 
+/// Merges the blocks on disk into a single file sorted by their last 6 bytes in ASC.
 pub fn merge_blocks(
     blocks: Vec<Block>,
     filename: &str,
@@ -28,6 +29,8 @@ pub fn merge_blocks(
         merge_handler(blocks, amount_of_threads, buffer_size, tx_child)
     });
 
+    // Will receive all hashes in sorted order on the rx_child channel from the spawned "merge_handler"
+    // and writes them all into the final output file.
     let mut count: u64 = 0;
     while let Some(min) = rx_child.recv()? {
         file_writer.write_all(min.as_ref())?;
@@ -47,6 +50,9 @@ pub fn merge_blocks(
     })?
 }
 
+/// Spawns threads that does all comparisons on the blocks while this merge_handler
+/// gathers the results and does comparisons on the results from those threads.
+/// Sends the current "ultimate" smallest hash to the "main-thread" over the tx_parent channel.
 fn merge_handler(
     mut blocks: Vec<Block>,
     mut amount_of_threads: usize,
@@ -117,6 +123,8 @@ fn merge_handler(
     // TODO: Fix weird error handling.
 }
 
+/// Does comparisons on a range of blocks. Sends the current "ultimate" smallest hash of the blocks
+/// to the parent "merge_handler" over the tx_parent channel.
 fn merge_handler_thread(
     sub_blocks: &mut [Block],
     tx_parent: &Sender<Option<Digest>>,

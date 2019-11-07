@@ -4,6 +4,8 @@ use crate::errors::GeneralError;
 use std::error::Error;
 use std::time::Instant;
 
+/// Creates all blocks and writes them to individualy sorted files in DESC.
+/// Returns the "meta data" of the blocks i.e. the "block" structs without the hashes.
 pub fn create_blocks(
     filename: &str,
     start: u64,
