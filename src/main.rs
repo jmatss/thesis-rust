@@ -5,10 +5,6 @@ mod digestwithid;
 mod errors;
 mod merge;
 
-extern crate clap;
-extern crate md5;
-extern crate num_cpus;
-
 use crate::cons::HASH_SIZE;
 use crate::create::create_blocks;
 use crate::merge::merge_blocks;

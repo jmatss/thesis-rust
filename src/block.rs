@@ -1,6 +1,3 @@
-extern crate md5;
-extern crate rayon;
-
 use crate::cons::{BUF_SIZE, HASH_SIZE, START_CMP};
 use crate::errors::GeneralError;
 use md5::Digest;
