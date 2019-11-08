@@ -41,13 +41,12 @@ pub fn merge_blocks(
         }
     }
 
-    // TODO: Fix weird error handling.
     file_writer.flush()?;
-    merge_handler.join().map_err(|_| {
-        Box::new(GeneralError::new(String::from(
-            "Unable to join merge_handler.",
-        )))
-    })?
+    merge_handler
+        .join()
+        .map_err(|e| -> Box<dyn Error + Send + Sync> {
+            GeneralError::new(format!("Unable to join merge_handler: {:?}", e)).into()
+        })?
 }
 
 /// Spawns threads that does all comparisons on the blocks while this merge_handler
@@ -97,7 +96,7 @@ fn merge_handler(
 
         loop {
             if priority_queue.is_empty() {
-                // Indicate to parent that it is done by sending None.
+                // Indicate to parent that is done by sending None.
                 tx_parent.send(None)?;
                 break;
             }
@@ -115,12 +114,9 @@ fn merge_handler(
 
         Ok(())
     })
-    .map_err(|_| {
-        Box::new(GeneralError::new(String::from(
-            "merge_handler unable to merge blocks.",
-        )))
+    .map_err(|e| -> Box<dyn Error + Send + Sync> {
+        GeneralError::new(format!("merge_handler unable to merge blocks: {:?}", e)).into()
     })?
-    // TODO: Fix weird error handling.
 }
 
 /// Does comparisons on a range of blocks. Sends the current "ultimate" smallest hash of the blocks
