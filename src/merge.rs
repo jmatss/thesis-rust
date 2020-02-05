@@ -1,51 +1,52 @@
 use crate::block::Block;
-use crate::cons::{BUF_SIZE, CHAN_BUF_SIZE};
+use crate::constants::{BUF_SIZE, CHAN_BUF_SIZE};
 use crate::digestwithid::DigestWithID;
-use crate::errors::GeneralError;
-use crossbeam_channel::{Receiver, Sender};
+use crate::error::ThesisResult;
+use crossbeam_channel::Sender;
 use crossbeam_utils::thread as cb_thread;
 use md5::Digest;
 use std::collections::BinaryHeap;
-use std::error::Error;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::thread;
+use crate::Arguments;
+use crate::error::ThesisError::MergeError;
 
 /// Merges the blocks on disk into a single file sorted by their last 6 bytes in ASC.
-pub fn merge_blocks(
-    blocks: Vec<Block>,
-    filename: &str,
-    buffer_size: u64,
-    print_amount: u64,
-    amount_of_threads: usize,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub fn merge_blocks(blocks: Vec<Block>, arguments: &Arguments) -> ThesisResult<()> {
+    let output = &arguments.output;
+    let buffer_size = arguments.buffer_size;
+    let print_amount = arguments.print_amount;
+    let amount_of_threads = arguments.amount_of_threads;
+
     if amount_of_threads == 0 {
-        return Err(GeneralError::new(String::from("Amount of threads set to zero.")).into());
+        return Err(MergeError("Amount of threads set to zero.".to_string()));
     }
 
-    let mut file_writer = BufWriter::with_capacity(BUF_SIZE, File::create(filename)?);
+    let file = File::create(output)?;
+    let mut file_writer = BufWriter::with_capacity(BUF_SIZE, file);
     let (tx_child, rx_child) = crossbeam_channel::bounded(CHAN_BUF_SIZE);
-    let merge_handler = thread::spawn(move || -> Result<(), Box<dyn Error + Send + Sync>> {
+    let merge_handler = thread::spawn(move || -> ThesisResult<()> {
         merge_handler(blocks, amount_of_threads, buffer_size, tx_child)
     });
 
-    // Will receive all hashes in sorted order on the rx_child channel from the spawned "merge_handler"
-    // and writes them all into the final output file.
+    // Will receive all hashes in sorted order on the rx_child channel from the
+    // spawned "merge_handler" and writes them all into the final output file.
     let mut count: u64 = 0;
-    while let Some(min) = rx_child.recv()? {
-        file_writer.write_all(min.as_ref())?;
+    while let Some(digest) = rx_child.recv()? {
+        file_writer.write_all(digest.as_ref())?;
 
         count += 1;
         if count % print_amount == 0 {
             println!("{} hashes merged.", count);
         }
     }
-
     file_writer.flush()?;
+
     merge_handler
         .join()
-        .map_err(|e| -> Box<dyn Error + Send + Sync> {
-            GeneralError::new(format!("Unable to join merge_handler: {:?}", e)).into()
+        .map_err(|e| {
+            MergeError(format!("Unable to join merge_handler: {:?}", e))
         })?
 }
 
@@ -57,14 +58,13 @@ fn merge_handler(
     mut amount_of_threads: usize,
     buffer_size: u64,
     tx_parent: Sender<Option<Digest>>,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
+) -> ThesisResult<()> {
     let buffer_size_per_block = buffer_size / blocks.len() as u64;
     for block in blocks.iter_mut() {
-        block
-            .init_merge(buffer_size_per_block)
-            .expect("Init merge failed.");
+        block.init_merge(buffer_size_per_block)?;
     }
 
+    // Fix edge case if there are fewer block than threads.
     let mut blocks_per_thread = if blocks.len() < amount_of_threads {
         amount_of_threads = blocks.len();
         1
@@ -72,11 +72,13 @@ fn merge_handler(
         blocks.len() / amount_of_threads
     };
 
-    let mut rx_channels: Vec<Receiver<Option<Digest>>> = Vec::with_capacity(amount_of_threads);
-    let mut priority_queue: BinaryHeap<DigestWithID> = BinaryHeap::with_capacity(amount_of_threads);
+    //let mut rx_channels: Vec<Receiver<Option<Digest>>> = Vec::with_capacity(amount_of_threads);
+    let mut rx_channels = Vec::with_capacity(amount_of_threads);
+    //let mut priority_queue: BinaryHeap<DigestWithID> = BinaryHeap::with_capacity(amount_of_threads);
+    let mut priority_queue = BinaryHeap::with_capacity(amount_of_threads);
     let mut remaining = blocks.as_mut_slice();
 
-    cb_thread::scope(|s| {
+    let scope = cb_thread::scope(|s| {
         for i in 0..amount_of_threads {
             if i == amount_of_threads - 1 {
                 blocks_per_thread = remaining.len();
@@ -113,19 +115,20 @@ fn merge_handler(
         }
 
         Ok(())
-    })
-    .map_err(|e| -> Box<dyn Error + Send + Sync> {
-        GeneralError::new(format!("merge_handler unable to merge blocks: {:?}", e)).into()
+    });
+
+    scope.map_err(|e| {
+        MergeError(format!("merge_handler unable to merge blocks: {:?}", e))
     })?
 }
 
-/// Does comparisons on a range of blocks. Sends the current "ultimate" smallest hash of the blocks
-/// to the parent "merge_handler" over the tx_parent channel.
+/// Does comparisons on a range of blocks. Sends the current "ultimate" smallest
+/// hash of the blocks to the parent "merge_handler" over the tx_parent channel.
 fn merge_handler_thread(
     sub_blocks: &mut [Block],
     tx_parent: &Sender<Option<Digest>>,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let mut priority_queue: BinaryHeap<DigestWithID> = BinaryHeap::with_capacity(sub_blocks.len());
+) -> ThesisResult<()> {
+    let mut priority_queue = BinaryHeap::with_capacity(sub_blocks.len());
 
     for (i, block) in sub_blocks.iter_mut().enumerate() {
         priority_queue.push(DigestWithID::new(i, block.pop()));
