@@ -1,11 +1,11 @@
-use crate::cons::{BUF_SIZE, HASH_SIZE, START_CMP};
-use crate::errors::GeneralError;
+use crate::r#const::{BUF_SIZE, HASH_SIZE, START_CMP};
+use crate::error::ThesisResult;
 use md5::Digest;
 use rayon::prelude::*;
-use std::error::Error;
 use std::fs::{remove_file, File, OpenOptions};
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::mem::{drop, replace};
+use crate::error::ThesisError::{CreateError, MergeError};
 
 #[derive(Debug, Clone)]
 pub struct Block {
@@ -22,13 +22,14 @@ impl Block {
         48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102,
     ];
 
-    pub fn new(filename: String, start: u64, end: u64) -> Result<Block, Box<dyn Error>> {
+    pub fn new(filename: String, start: u64, end: u64) -> ThesisResult<Block> {
         if end <= start {
-            return Err(GeneralError::new(format!(
-                "Bad start and end argument. end <= start ({} <= {})",
-                end, start
-            ))
-            .into());
+            return Err(CreateError(
+                format!(
+                    "Bad start and end argument: end <= start ({} <= {})",
+                    end, start
+                )
+            ));
         }
 
         Ok(Block {
@@ -51,12 +52,15 @@ impl Block {
     /// Sorts the hashes in self.hashes in DESC order, sorted by their last 6 bytes.
     pub fn sort(&mut self) -> &mut Self {
         self.hashes
-            .par_sort_unstable_by(|a, b| b[START_CMP..].cmp(&a[START_CMP..]));
+            .par_sort_unstable_by(
+                |a, b| b[START_CMP..].cmp(&a[START_CMP..])
+            );
         self
     }
 
-    pub fn write_to_file(&mut self) -> Result<&mut Self, Box<dyn Error>> {
-        let mut file_writer = BufWriter::with_capacity(BUF_SIZE, File::create(&self.filename)?);
+    pub fn write_to_file(&mut self) -> ThesisResult<&mut Self> {
+        let file = File::create(&self.filename)?;
+        let mut file_writer = BufWriter::with_capacity(BUF_SIZE, file);
 
         for digest in self.hashes.iter() {
             file_writer.write_all(digest.as_ref())?;
@@ -70,13 +74,16 @@ impl Block {
         drop(replace(&mut self.hashes, Vec::with_capacity(0)));
     }
 
-    pub fn init_merge(
-        &mut self,
-        mut merge_buffer_size: u64,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub fn init_merge(&mut self, mut merge_buffer_size: u64) -> ThesisResult<()> {
+        // Floor to multiple of HASH_SIZE.
         merge_buffer_size -= merge_buffer_size % HASH_SIZE as u64;
         if merge_buffer_size == 0 {
-            return Err(GeneralError::new(String::from("Merge buffer size to small")).into());
+            return Err(MergeError(
+                format!(
+                    "Merge buffer size to small, expected: >={}.",
+                    HASH_SIZE
+                )
+            ));
         }
 
         self.merge_buffer_size = merge_buffer_size;
@@ -91,7 +98,7 @@ impl Block {
     }
 
     /// Reads hashes from hard drive into ram for this block.
-    pub fn read(&mut self) -> Result<(), Box<dyn Error + Sync + Send>> {
+    pub fn read(&mut self) -> ThesisResult<()> {
         self.drop_hashes();
 
         let file = OpenOptions::new()
