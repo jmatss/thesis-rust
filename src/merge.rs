@@ -72,9 +72,7 @@ fn merge_handler(
         blocks.len() / amount_of_threads
     };
 
-    //let mut rx_channels: Vec<Receiver<Option<Digest>>> = Vec::with_capacity(amount_of_threads);
     let mut rx_channels = Vec::with_capacity(amount_of_threads);
-    //let mut priority_queue: BinaryHeap<DigestWithID> = BinaryHeap::with_capacity(amount_of_threads);
     let mut priority_queue = BinaryHeap::with_capacity(amount_of_threads);
     let mut remaining = blocks.as_mut_slice();
 
