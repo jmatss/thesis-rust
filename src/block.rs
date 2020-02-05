@@ -1,4 +1,4 @@
-use crate::r#const::{BUF_SIZE, HASH_SIZE, START_CMP};
+use crate::constants::{BUF_SIZE, HASH_SIZE, START_CMP};
 use crate::error::ThesisResult;
 use md5::Digest;
 use rayon::prelude::*;

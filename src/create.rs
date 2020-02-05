@@ -1,5 +1,5 @@
 use crate::block::Block;
-use crate::r#const::HASH_SIZE;
+use crate::constants::HASH_SIZE;
 use crate::error::ThesisResult;
 use std::time::Instant;
 use crate::Arguments;

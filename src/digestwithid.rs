@@ -1,4 +1,4 @@
-use crate::cons::START_CMP;
+use crate::constants::START_CMP;
 use md5::Digest;
 use std::cmp::Ordering;
 
