@@ -7,7 +7,6 @@ The Raspberry Pi which the AutoPi is built upon, has a unique 8 character hex se
 This program create a wordlist of all possible hashes sorted by the last 6 bytes (the SSID). It is implemented using a external sorting algorithm and will create a file of size 64GB.
 
 ```
-$ thesis-rust.exe -h
 USAGE:
     thesis-rust.exe [OPTIONS]
 
