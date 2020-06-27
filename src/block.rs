@@ -1,11 +1,11 @@
 use crate::constants::{BUF_SIZE, HASH_SIZE, START_CMP};
+use crate::error::ThesisError::{CreateError, MergeError};
 use crate::error::ThesisResult;
 use md5::Digest;
 use rayon::prelude::*;
 use std::fs::{remove_file, File, OpenOptions};
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
-use std::mem::{drop, replace};
-use crate::error::ThesisError::{CreateError, MergeError};
+use std::mem;
 
 #[derive(Debug, Clone)]
 pub struct Block {
@@ -24,12 +24,10 @@ impl Block {
 
     pub fn new(filename: String, start: u64, end: u64) -> ThesisResult<Block> {
         if end <= start {
-            return Err(CreateError(
-                format!(
-                    "Bad start and end argument: end <= start ({} <= {})",
-                    end, start
-                )
-            ));
+            return Err(CreateError(format!(
+                "Bad start and end argument: end <= start ({} <= {})",
+                end, start
+            )));
         }
 
         Ok(Block {
@@ -52,9 +50,7 @@ impl Block {
     /// Sorts the hashes in self.hashes in DESC order, sorted by their last 6 bytes.
     pub fn sort(&mut self) -> &mut Self {
         self.hashes
-            .par_sort_unstable_by(
-                |a, b| b[START_CMP..].cmp(&a[START_CMP..])
-            );
+            .par_sort_unstable_by(|a, b| b[START_CMP..].cmp(&a[START_CMP..]));
         self
     }
 
@@ -71,19 +67,17 @@ impl Block {
     }
 
     pub fn drop_hashes(&mut self) {
-        drop(replace(&mut self.hashes, Vec::with_capacity(0)));
+        mem::replace(&mut self.hashes, Vec::with_capacity(0));
     }
 
     pub fn init_merge(&mut self, mut merge_buffer_size: u64) -> ThesisResult<()> {
         // Floor to multiple of HASH_SIZE.
         merge_buffer_size -= merge_buffer_size % HASH_SIZE as u64;
         if merge_buffer_size == 0 {
-            return Err(MergeError(
-                format!(
-                    "Merge buffer size to small, expected: >={}.",
-                    HASH_SIZE
-                )
-            ));
+            return Err(MergeError(format!(
+                "Merge buffer size to small, expected: >={}.",
+                HASH_SIZE
+            )));
         }
 
         self.merge_buffer_size = merge_buffer_size;
@@ -113,7 +107,7 @@ impl Block {
         // self.drop_hashes() call. The caller will then see
         // that the capacity is zero in the pop function.
         if file_length == 0 {
-            drop(file);
+            mem::drop(file);
             remove_file(&self.filename)?;
             return Ok(());
         }

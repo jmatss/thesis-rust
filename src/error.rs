@@ -1,8 +1,7 @@
-use std::fmt::{Display, Formatter};
-use std::io;
-use std::error::Error;
 use crossbeam_channel::{RecvError, SendError};
 use md5::Digest;
+use std::fmt::{Display, Formatter};
+use std::io;
 
 #[derive(Debug)]
 pub enum ThesisError {
@@ -25,11 +24,9 @@ impl Display for ThesisError {
         match self {
             ThesisError::CreateError(s) => write!(f, "{}", s),
             ThesisError::MergeError(s) => write!(f, "{}", s),
-            ThesisError::IOError(e) => write!(f, "{}", e.description()),
-            ThesisError::ChannelError(ChannelErrorEnum::RecvError(e)) =>
-                write!(f, "{}", e.description()),
-            ThesisError::ChannelError(ChannelErrorEnum::SendError(e)) =>
-                write!(f, "{}", e.description()),
+            ThesisError::IOError(e) => write!(f, "{}", e),
+            ThesisError::ChannelError(ChannelErrorEnum::RecvError(e)) => write!(f, "{}", e),
+            ThesisError::ChannelError(ChannelErrorEnum::SendError(e)) => write!(f, "{}", e),
         }
     }
 }

@@ -1,7 +1,9 @@
 use crate::block::Block;
 use crate::constants::{BUF_SIZE, CHAN_BUF_SIZE};
 use crate::digestwithid::DigestWithID;
+use crate::error::ThesisError::MergeError;
 use crate::error::ThesisResult;
+use crate::Arguments;
 use crossbeam_channel::Sender;
 use crossbeam_utils::thread as cb_thread;
 use md5::Digest;
@@ -9,8 +11,6 @@ use std::collections::BinaryHeap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::thread;
-use crate::Arguments;
-use crate::error::ThesisError::MergeError;
 
 /// Merges the blocks on disk into a single file sorted by their last 6 bytes in ASC.
 pub fn merge_blocks(blocks: Vec<Block>, arguments: &Arguments) -> ThesisResult<()> {
@@ -45,9 +45,7 @@ pub fn merge_blocks(blocks: Vec<Block>, arguments: &Arguments) -> ThesisResult<(
 
     merge_handler
         .join()
-        .map_err(|e| {
-            MergeError(format!("Unable to join merge_handler: {:?}", e))
-        })?
+        .map_err(|e| MergeError(format!("Unable to join merge_handler: {:?}", e)))?
 }
 
 /// Spawns threads that does all comparisons on the blocks while this merge_handler
@@ -115,9 +113,7 @@ fn merge_handler(
         Ok(())
     });
 
-    scope.map_err(|e| {
-        MergeError(format!("merge_handler unable to merge blocks: {:?}", e))
-    })?
+    scope.map_err(|e| MergeError(format!("merge_handler unable to merge blocks: {:?}", e)))?
 }
 
 /// Does comparisons on a range of blocks. Sends the current "ultimate" smallest

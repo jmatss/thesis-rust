@@ -7,18 +7,18 @@ mod merge;
 
 use crate::constants::HASH_SIZE;
 use crate::create::create_blocks;
+use crate::error::ThesisError;
 use crate::merge::merge_blocks;
 use clap::{App, Arg};
 use std::time::Instant;
-use crate::error::ThesisError;
 
 pub struct Arguments {
-    pub output: String,
-    pub start: u64,
-    pub end: u64,
-    pub buffer_size: u64,
-    pub print_amount: u64,
-    pub amount_of_threads: usize,
+    output: String,
+    start: u64,
+    end: u64,
+    buffer_size: u64,
+    print_amount: u64,
+    amount_of_threads: usize,
 }
 
 fn main() -> Result<(), ThesisError> {
@@ -61,7 +61,7 @@ macro_rules! first {
             .next()
             .expect("Unable to get first char.")
             .to_string()
-    }
+    };
 }
 
 // Parse arguments from clap's "matches".
@@ -83,7 +83,7 @@ macro_rules! parse {
                 $name,
                 stringify!($type_),
             ))
-    }
+    };
 }
 
 fn parse_arguments() -> Arguments {

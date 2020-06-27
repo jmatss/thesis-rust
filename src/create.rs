@@ -1,9 +1,9 @@
 use crate::block::Block;
 use crate::constants::HASH_SIZE;
-use crate::error::ThesisResult;
-use std::time::Instant;
-use crate::Arguments;
 use crate::error::ThesisError::CreateError;
+use crate::error::ThesisResult;
+use crate::Arguments;
+use std::time::Instant;
 
 /// Creates all blocks and writes them to individually sorted files in DESC.
 /// Returns the "meta data" of the blocks i.e. the "block" structs without the hashes.
@@ -18,12 +18,10 @@ pub fn create_blocks(arguments: &Arguments) -> ThesisResult<Vec<Block>> {
     // Floor to multiple of HASH_SIZE.
     buffer_size -= buffer_size % HASH_SIZE as u64;
     if buffer_size == 0 {
-        return Err(CreateError(
-            format!(
-                "Specified buffer size is to small. Needs to be >= {} bytes.",
-                HASH_SIZE
-            )
-        ));
+        return Err(CreateError(format!(
+            "Specified buffer size is to small. Needs to be >= {} bytes.",
+            HASH_SIZE
+        )));
     }
 
     let mut current_start = start;
